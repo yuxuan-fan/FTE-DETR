@@ -3,9 +3,9 @@ random.seed(0)
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-val_size = 0.1
-test_size = 0.2
-postfix = 'jpg'
+val_size = 0.1           #验证集
+test_size = 0.2         #测试集
+postfix = 'jpg'         #图片后缀
 imgpath = 'VOCdevkit/JPEGImages'
 txtpath = 'VOCdevkit/txt'
 

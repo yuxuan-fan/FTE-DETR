@@ -1,5 +1,5 @@
 # dataset path
-path: /home/hjj/Desktop/github_code/RTDETR/
+path: /home/hjj/Desktop/github_code/RTDETR/  #项目路径
 train: ./dataset/images/train
 val: ./dataset/images/val
 test: ./dataset/images/test
