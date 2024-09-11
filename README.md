@@ -18,6 +18,29 @@ mmcv: 2.1.0
 
 mmengine: 0.9.0
 
+```
+1. 执行pip uninstall ultralytics把安装在环境里面的ultralytics库卸载干净.<这里需要注意,如果你也在使用yolov8,最好使用anaconda创建一个虚拟环境供本代码使用,避免环境冲突导致一些奇怪的问题>
+2. 卸载完成后同样再执行一次,如果出现WARNING: Skipping ultralytics as it is not installed.证明已经卸载干净.
+3. 如果需要使用官方的CLI运行方式,需要把ultralytics库安装一下,执行命令:<python setup.py develop>,当然安装后对本代码进行修改依然有效.(develop作用解释具体可看: https://blog.csdn.net/qq_16568205/article/details/110433714)  注意:不需要使用官方的CLI运行方式,可以选择跳过这步
+4. 额外需要的包安装命令:
+    pip install timm==0.9.8 thop efficientnet_pytorch==0.7.1 einops grad-cam==1.4.8 dill==0.3.6 albumentations==1.3.1 pytorch_wavelets==1.3.0 tidecv PyWavelets -i https://pypi.tuna.tsinghua.edu.cn/simple
+    以下主要是使用dyhead必定需要安装的包,如果安装不成功dyhead没办法正常使用!
+    pip install -U openmim
+    mim install mmengine
+    mim install "mmcv>=2.0.0"
+5. 运行时候如果还缺什么包就请自行安装即可.
+
+AutoDL环境推荐教程:https://www.bilibili.com/video/BV1tT4y1b75q/
+
+需要编译才能运行的一些模块:
+    1. mamba(百度云视频-20240219更新说明)
+    2. dcnv3(百度云视频-20231119更新说明)
+    3. dcnv4(百度云视频-20240120更新说明)
+    4. smpconv(百度云视频-20240608更新说明)
+    5. mamba-yolo(百度云视频-20240622更新说明)
+
+本目录下的test_env.py文件为了验证一些需要编译的或者难安装的(mmcv)是否成功的代码.详细请看以下这期视频:https://pan.baidu.com/s/1sWwvN4UC3blBRVe1twrJAg?pwd=bru5
+```
 
 # 自带的一些文件说明
 1. train.py
