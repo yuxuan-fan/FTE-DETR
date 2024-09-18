@@ -1,5 +1,5 @@
 无预训练权重，需下载
-推荐用r18，做轻量化
+推荐用r18的网络结构，做轻量化
 
 
 本项目使用的ultralytics版本为8.0.201,在ultralytics/__init__.py中的__version__有标识.
@@ -47,6 +47,25 @@ mmengine: 0.9.0
 本目录下的test_env.py文件为了验证一些需要编译的或者难安装的(mmcv)是否成功的代码.详细请看以下这期视频:https://pan.baidu.com/s/1sWwvN4UC3blBRVe1twrJAg?pwd=bru5
 ```
 
+# 本地cpu测试跑通
+用anaconda创建虚拟环境，conda create --name rtdetr
+conda activate rtdetr激活去你环境，进入环境安装相关包（见实验环境）
+
+
+
+
+# 数据集相关
+VOC格式的数据集将标注放在Annotations,图片放在JPEGImages，图片后缀需要固定。
+.\dataset\VOCdevkit\Annotations
+
+运行xml2txt.py，会将xml格式的标注转换成txt，需注意路径。
+这样就得到了yolo格式的数据集。
+
+通过split_data.py对数据集进行划分，运行完就会分割出iamges和lables文件夹
+
+data.yaml中需要修改项目路径 类别数量 类别名称
+
+
 # 自带的一些文件说明
 1. train.py
     训练模型的脚本 导入预训练权重
@@ -70,16 +89,3 @@ mmengine: 0.9.0
     绘制模型的有效感受野.[视频链接](https://www.bilibili.com/video/BV1Gx4y1v7ZZ/)
 11. export.py
     导出模型脚本
-
-
-
-# 数据集相关
-VOC格式的数据集将标注放在Annotations,图片放在JPEGImages，图片后缀需要固定。
-.\dataset\VOCdevkit\Annotations
-
-运行xml2txt.py，会将xml格式的标注转换成txt，需注意路径。
-这样就得到了yolo格式的数据集。
-
-通过split_data.py对数据集进行划分，运行完就会分割出iamges和lables文件夹
-
-data.yaml中需要修改项目路径 类别数量 类别名称
