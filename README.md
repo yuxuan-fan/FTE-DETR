@@ -49,7 +49,10 @@ mmengine: 0.9.0
 
 # 本地cpu测试跑通
 用anaconda创建虚拟环境，conda create --name rtdetr
+
 conda activate rtdetr激活去你环境，进入环境安装相关包（见实验环境）
+
+
 
 
 
