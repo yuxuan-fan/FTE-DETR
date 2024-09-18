@@ -34,9 +34,8 @@ mmengine: 0.9.0
     pip install -U openmim
     mim install mmengine
     mim install "mmcv>=2.0.0"
-5. 运行时候如果还缺什么包就请自行安装即可.
 
-AutoDL环境推荐教程:https://www.bilibili.com/video/BV1tT4y1b75q/
+5. 运行时候如果还缺什么包就请自行安装即可.（后面的改进模块可能需要引入新的包）
 
 需要编译才能运行的一些模块:
     1. mamba(百度云视频-20240219更新说明)
