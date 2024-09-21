@@ -41,21 +41,26 @@ except ImportError:
 
 
 class BaseModel(nn.Module):
-    """The BaseModel class serves as a base class for all the models in the Ultralytics YOLO family."""
+    """
+    The BaseModel class serves as a base class for all the models in the Ultralytics YOLO family.
+    作为 Ultralytics YOLO 系列模型的基类。
+    """
 
     def forward(self, x, *args, **kwargs):
         """
+        前向传播
         Forward pass of the model on a single scale. Wrapper for `_forward_once` method.
 
         Args:
             x (torch.Tensor | dict): The input image tensor or a dict including image tensor and gt labels.
 
         Returns:
-            (torch.Tensor): The output of the network.
+            (torch.Tensor): The output of the network. 返回一个torch.Tensor类型的对象，代表网络的输出。
         """
-        if isinstance(x, dict):  # for cases of training and validating while training.
-            return self.loss(x, *args, **kwargs)
-        return self.predict(x, *args, **kwargs)
+        #检查输入 x 是否是一个字典类型。
+        if isinstance(x, dict):  #在训练和验证过程中，可能会将图像张量和对应的真实标签（ground truth labels）封装在一个字典中进行传递。
+            return self.loss(x, *args, **kwargs)#处于训练或验证阶段
+        return self.predict(x, *args, **kwargs)#假设处于预测阶段，调用 self.predict 方法进行预测并返回结果。
 
     def predict(self, x, profile=False, visualize=False, augment=False):
         """

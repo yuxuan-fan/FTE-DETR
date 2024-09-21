@@ -6,7 +6,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.init import constant_, xavier_uniform_
+from torch.nn.init import constant_, xavier_uniform_AIFI
 
 from .conv import Conv
 from .utils import _get_clones, inverse_sigmoid, multi_scale_deformable_attn_pytorch
@@ -16,7 +16,7 @@ __all__ = ('TransformerEncoderLayer', 'TransformerLayer', 'TransformerBlock', 'M
 
 
 class TransformerEncoderLayer(nn.Module):
-    """Defines a single layer of the transformer encoder."""
+    """Defines a single layer of the transformer encoder.非常标准的多头自注意力"""
 
     def __init__(self, c1, cm=2048, num_heads=8, dropout=0.0, act=nn.GELU(), normalize_before=False):
         """Initialize the TransformerEncoderLayer with specified parameters."""
@@ -25,7 +25,7 @@ class TransformerEncoderLayer(nn.Module):
         if not TORCH_1_9:
             raise ModuleNotFoundError(
                 'TransformerEncoderLayer() requires torch>=1.9 to use nn.MultiheadAttention(batch_first=True).')
-        self.ma = nn.MultiheadAttention(c1, num_heads, dropout=dropout, batch_first=True)
+        self.ma = nn.MultiheadAttention(c1, num_heads, dropout=dropout, batch_first=True)#创建一个多头自注意力模块，输入通道数为c1，头数为num_heads，丢弃率为dropout，并设置batch_first=True。
         # Implementation of Feedforward model
         self.fc1 = nn.Linear(c1, cm)
         self.fc2 = nn.Linear(cm, c1)
@@ -41,12 +41,15 @@ class TransformerEncoderLayer(nn.Module):
 
     @staticmethod
     def with_pos_embed(tensor, pos=None):
-        """Add position embeddings to the tensor if provided."""
+        """Add position embeddings to the tensor if provided.
+        定义一个静态方法，用于在张量上添加位置编码，如果提供了位置编码则返回张量加上位置编码，否则返回原始张量。"""
         return tensor if pos is None else tensor + pos
 
     def forward_post(self, src, src_mask=None, src_key_padding_mask=None, pos=None):
         """Performs forward pass with post-normalization."""
-        q = k = self.with_pos_embed(src, pos)
+        q = k = self.with_pos_embed(src, pos)#将输入张量加上位置编码后分别赋值给查询向量q和键向量k。
+        
+        #使用多头自注意力模块进行计算，得到注意力后的结果。
         src2 = self.ma(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -55,7 +58,7 @@ class TransformerEncoderLayer(nn.Module):
         return self.norm2(src)
 
     def forward_pre(self, src, src_mask=None, src_key_padding_mask=None, pos=None):
-        """Performs forward pass with pre-normalization."""
+        """Performs forward pass with pre-normalization.用于执行前归一化的前向传播。"""
         src2 = self.norm1(src)
         q = k = self.with_pos_embed(src2, pos)
         src2 = self.ma(q, k, value=src2, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)[0]
@@ -72,7 +75,9 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class AIFI(TransformerEncoderLayer):
-    """Defines the AIFI transformer layer."""
+    """Defines the AIFI transformer layer.
+    该模块就是一个位置编码加一个Multi Head Self Attention（即encoder）
+    """
 
     def __init__(self, c1, cm=2048, num_heads=8, dropout=0, act=nn.GELU(), normalize_before=False):
         """Initialize the AIFI instance with specified parameters."""
@@ -81,9 +86,11 @@ class AIFI(TransformerEncoderLayer):
     def forward(self, x):
         """Forward pass for the AIFI transformer layer."""
         c, h, w = x.shape[1:]
-        pos_embed = self.build_2d_sincos_position_embedding(w, h, c)
-        # Flatten [B, C, H, W] to [B, HxW, C]
+        pos_embed = self.build_2d_sincos_position_embedding(w, h, c)## 对特征图每个像素位置编码 
+        # Flatten [B, C, H, W] to [B, HxW, C] 
+        # 调用父类的前向传播方法，传入展平并转置后的输入张量和位置编码。
         x = super().forward(x.flatten(2).permute(0, 2, 1), pos=pos_embed.to(device=x.device, dtype=x.dtype))
+        #将结果转置、重塑并返回，恢复为原始的形状[B, C, H, W]。
         return x.permute(0, 2, 1).view([-1, c, h, w]).contiguous()
 
     @staticmethod

@@ -59,7 +59,8 @@ class Proto(nn.Module):
 class HGStem(nn.Module):
     """
     StemBlock of PPHGNetV2 with 5 convolutions and one maxpool2d.
-
+    PPHGNetV2 的 StemBlock 由 5 个卷积层和 1 个最大池化层（maxpool2d）组成。
+    主要起到升维和降采样的作用，因为是第一层，参数固定，直接用显式数字表示
     https://github.com/PaddlePaddle/PaddleDetection/blob/develop/ppdet/modeling/backbones/hgnet_v2.py
     """
 
@@ -97,11 +98,13 @@ class HGBlock(nn.Module):
     def __init__(self, c1, cm, c2, k=3, n=6, lightconv=False, shortcut=False, act=nn.ReLU()):
         """Initializes a CSP Bottleneck with 1 convolution using specified input and output channels."""
         super().__init__()
-        block = LightConv if lightconv else Conv
+        block = LightConv if lightconv else Conv#根据lightconv的标志决定使用LightConv还是普通的Conv。
+        
+        #创建一个由n个卷积模块组成的模块列表，第一个模块的输入通道数为c1，其余模块的输入通道数为cm
         self.m = nn.ModuleList(block(c1 if i == 0 else cm, cm, k=k, act=act) for i in range(n))
-        self.sc = Conv(c1 + n * cm, c2 // 2, 1, 1, act=act)  # squeeze conv
-        self.ec = Conv(c2 // 2, c2, 1, 1, act=act)  # excitation conv
-        self.add = shortcut and c1 == c2
+        self.sc = Conv(c1 + n * cm, c2 // 2, 1, 1, act=act)  # squeeze conv 挤压卷积
+        self.ec = Conv(c2 // 2, c2, 1, 1, act=act)  # excitation conv 激励卷积 SE注意力？
+        self.add = shortcut and c1 == c2#根据shortcut的标志和输入输出通道数是否相等来确定是否使用快捷连接。
 
     def forward(self, x):
         """Forward pass of a PPHGNetV2 backbone layer."""
