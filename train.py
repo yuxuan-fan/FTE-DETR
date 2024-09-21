@@ -11,10 +11,10 @@ if __name__ == '__main__':
                 epochs=100,
                 batch=4,
                 workers=4,
-                # device='0',
-                device='cpu',
                 
-                
+                device='0',
+                # device='cpu', 本地调试使用cpu
+
                 # resume='', # last.pt path
                 project='runs/train',
                 name='exp',
