@@ -1,5 +1,3 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
 import contextlib
 from copy import deepcopy
 from pathlib import Path
