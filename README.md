@@ -52,7 +52,7 @@ mmengine: 0.9.0
 
 conda activate rtdetr激活去你环境，进入环境安装相关包（见实验环境）
 
-
+conda create --name newenv python=3.8.16 -c pytorch
 
 
 
