@@ -1,12 +1,12 @@
 无预训练权重，需下载
-推荐用r18的网络结构，做轻量化
 
 
 本项目使用的ultralytics版本为8.0.201,在ultralytics/__init__.py中的__version__有标识.
 
-实验环境:
 
-可能需要关闭vpn
+# 实验环境配置:
+用anaconda创建虚拟环境，
+
 python: 3.8.16
 
 torch: 1.13.1+cu117
@@ -19,19 +19,30 @@ mmcv: 2.1.0
 
 mmengine: 0.9.0
 
-```
-1. 执行pip uninstall ultralytics把安装在环境里面的ultralytics库卸载干净.<这里需要注意,如果你也在使用yolov8,最好使用anaconda创建一个虚拟环境供本代码使用,避免环境冲突导致一些奇怪的问题>
-2. 卸载完成后同样再执行一次,如果出现WARNING: Skipping ultralytics as it is not installed.证明已经卸载干净.
-用colab的话以上两步无需操作
 
+```
+conda create --name rtdetr python=3.8.16
+pip安装包时，可能需要关闭vpn
+conda install pytorch torchvision torchaudio cudatoolkit=11.7 -c pytorch
+pip install timm==0.9.8
+pip install mmcv==2.1.0   #这个setup可能有点问题，直接中止不影响
+pip install mmengine==0.9.0
+
+```
+
+
+```
+常规步骤
+1. 执行pip uninstall ultralytics把安装在环境里面的ultralytics库卸载干净.
+2. 卸载完成后同样再执行一次,如果出现WARNING: Skipping ultralytics as it is not installed.证明已经卸载干净.
 3. 如果需要使用官方的CLI运行方式,需要把ultralytics库安装一下,执行命令:<python setup.py develop>,当然安装后对本代码进行修改依然有效.(develop作用解释具体可看: https://blog.csdn.net/qq_16568205/article/details/110433714)  注意:不需要使用官方的CLI运行方式,可以选择跳过这步
-这也不用
+
 
 4. 额外需要的包安装命令:
     pip install timm==0.9.8 thop efficientnet_pytorch==0.7.1 einops grad-cam==1.4.8 dill==0.3.6 albumentations==1.3.1 pytorch_wavelets==1.3.0 tidecv PyWavelets -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 
-    以下主要是使用dyhead（好像是蛇形卷积？）必定需要安装的包,如果安装不成功dyhead没办法正常使用!
+    以下主要是使用dyhead必定需要安装的包,如果安装不成功dyhead没办法正常使用!
     pip install -U openmim
     mim install mmengine
     mim install "mmcv>=2.0.0"
@@ -48,12 +59,6 @@ mmengine: 0.9.0
 本目录下的test_env.py文件为了验证一些需要编译的或者难安装的(mmcv)是否成功的代码.详细请看以下这期视频:https://pan.baidu.com/s/1sWwvN4UC3blBRVe1twrJAg?pwd=bru5
 ```
 
-# 本地cpu测试跑通
-用anaconda创建虚拟环境，conda create --name rtdetr
-
-conda activate rtdetr激活去你环境，进入环境安装相关包（见实验环境）
-
-conda create --name newenv python=3.8.16 -c pytorch
 
 
 
