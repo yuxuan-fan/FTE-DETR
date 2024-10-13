@@ -1,4 +1,4 @@
-
+#test_env.py文件为了验证一些需要编译的或者难安装的(mmcv)是否成功的代码
 # mmcv、mmengin测试代码
 from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2d, modulated_deform_conv2d
 from mmcv.cnn import ConvModule, build_norm_layer
