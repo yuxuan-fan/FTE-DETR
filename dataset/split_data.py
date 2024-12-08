@@ -6,15 +6,15 @@ from sklearn.model_selection import train_test_split
 val_size = 0.1           #验证集
 test_size = 0.2         #测试集
 postfix = 'jpg'         #图片后缀
-imgpath = 'VOCdevkit/JPEGImages'
-txtpath = 'VOCdevkit/txt'
+imgpath = r'E:\dataset\deepPCB_yolo\images'
+txtpath = r'E:\dataset\deepPCB_yolo\labels'
 
-os.makedirs('images/train', exist_ok=True)
-os.makedirs('images/val', exist_ok=True)
-os.makedirs('images/test', exist_ok=True)
-os.makedirs('labels/train', exist_ok=True)
-os.makedirs('labels/val', exist_ok=True)
-os.makedirs('labels/test', exist_ok=True)
+os.makedirs('split/images/train', exist_ok=True)
+os.makedirs('split/images/val', exist_ok=True)
+os.makedirs('split/images/test', exist_ok=True)
+os.makedirs('split/labels/train', exist_ok=True)
+os.makedirs('split/labels/val', exist_ok=True)
+os.makedirs('split/labels/test', exist_ok=True)
 
 listdir = np.array([i for i in os.listdir(txtpath) if 'txt' in i])
 random.shuffle(listdir)
