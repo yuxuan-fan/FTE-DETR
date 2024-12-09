@@ -1,4 +1,4 @@
-# 基于[ultralytics](https://github.com/ultralytics/ultralytics)的RT-DETR改进项目
+# 基于[ultralytics](https://github.com/ultralytics/ultralytics)的RT-DETR
 
     ------- From 哔哩哔哩 魔鬼面具UP -------
     本项目使用的ultralytics版本为8.0.201,在ultralytics/__init__.py中的__version__有标识.
