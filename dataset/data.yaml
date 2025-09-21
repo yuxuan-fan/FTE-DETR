@@ -1,5 +1,5 @@
 # dataset path
-path: E:\dataset\deepPCB_yolo\split #项目路径
+path: /root/autodl-fs #项目路径
 train: images\train
 val: images\val
 test: images\test
