@@ -10,4 +10,5 @@ nc: 6
 # class names
 # names: ['ship']
 # names: ['missing_hole', 'mouse_bite', 'open_circuit', 'short', 'spurious_copper', 'spur']     #PKU
-names: ['copper', 'mousebite', 'open', 'pin-hole', 'short', 'spur']
+# names: ['copper', 'mousebite', 'open', 'pin-hole', 'short', 'spur']                           #deepPCB
+

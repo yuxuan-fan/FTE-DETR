@@ -7,7 +7,7 @@ if __name__ == '__main__':
     model.train(data='dataset/data.yaml',
                 cache=False,
                 imgsz=640,
-                epochs=600,
+                epochs=350,
                 batch=6,
                 workers=4,
                 
@@ -15,7 +15,7 @@ if __name__ == '__main__':
                 # device='cpu', #本地调试使用cpu
                 # resume='', # last.pt path
                 project='runs/train',
-                name='deeppcb',
+                name='deepPCB',
                 )
 
     
