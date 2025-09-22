@@ -25,6 +25,7 @@ except ImportError:
     thop = None
 
 TORCH_1_9 = check_version(torch.__version__, '1.9.0')
+TORCH_1_13 = check_version(torch.__version__, "1.13.0")
 TORCH_1_13_1 = check_version(torch.__version__, '1.13.1')
 TORCH_2_0 = check_version(torch.__version__, '2.0.0')
 
@@ -444,7 +445,10 @@ def strip_optimizer(f: Union[str, Path] = 'best.pt', s: str = '') -> None:
             strip_optimizer(f)
         ```
     """
-    x = torch.load(f, map_location=torch.device('cpu'))
+    try:
+        x = torch.load(f, map_location=torch.device('cpu'))
+    except:
+        x = torch.load(f, map_location=torch.device('cpu'), weights_only=False)
     if 'model' not in x:
         LOGGER.info(f'Skipping {f}, not a valid Ultralytics model.')
         return
@@ -457,7 +461,7 @@ def strip_optimizer(f: Union[str, Path] = 'best.pt', s: str = '') -> None:
     for k in 'optimizer', 'best_fitness', 'ema', 'updates':  # keys
         x[k] = None
     x['epoch'] = -1
-    x['model'].half()  # to FP16
+    # x['model'].half()  # to FP16
     for p in x['model'].parameters():
         p.requires_grad = False
     x['train_args'] = {k: v for k, v in args.items() if k in DEFAULT_CFG_KEYS}  # strip non-default keys

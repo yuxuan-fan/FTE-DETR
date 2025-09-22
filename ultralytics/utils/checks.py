@@ -96,6 +96,21 @@ def is_ascii(s) -> bool:
     # Check if the string is composed of only ASCII characters
     return all(ord(c) < 128 for c in s)
 
+def check_is_path_safe(basedir, path):
+    """
+    Check if the resolved path is under the intended directory to prevent path traversal.
+
+    Args:
+        basedir (Path | str): The intended directory.
+        path (Path | str): The path to check.
+
+    Returns:
+        (bool): True if the path is safe, False otherwise.
+    """
+    base_dir_resolved = Path(basedir).resolve()
+    path_resolved = Path(path).resolve()
+
+    return path_resolved.exists() and path_resolved.parts[: len(base_dir_resolved.parts)] == base_dir_resolved.parts
 
 def check_imgsz(imgsz, stride=32, min_dim=1, max_dim=2, floor=0):
     """
@@ -145,11 +160,14 @@ def check_imgsz(imgsz, stride=32, min_dim=1, max_dim=2, floor=0):
     return sz
 
 
-def check_version(current: str = '0.0.0',
-                  required: str = '0.0.0',
-                  name: str = 'version',
-                  hard: bool = False,
-                  verbose: bool = False) -> bool:
+def check_version(
+    current: str = "0.0.0",
+    required: str = "0.0.0",
+    name: str = "version",
+    hard: bool = False,
+    verbose: bool = False,
+    msg: str = "",
+) -> bool:
     """
     Check current version against the required version or range.
 
@@ -159,6 +177,7 @@ def check_version(current: str = '0.0.0',
         name (str, optional): Name to be used in warning message.
         hard (bool, optional): If True, raise an AssertionError if the requirement is not met.
         verbose (bool, optional): If True, print warning message if requirement is not met.
+        msg (str, optional): Extra message to display if verbose.
 
     Returns:
         (bool): True if requirement is met, False otherwise.
@@ -166,57 +185,66 @@ def check_version(current: str = '0.0.0',
     Example:
         ```python
         # Check if current version is exactly 22.04
-        check_version(current='22.04', required='==22.04')
+        check_version(current="22.04", required="==22.04")
 
         # Check if current version is greater than or equal to 22.04
-        check_version(current='22.10', required='22.04')  # assumes '>=' inequality if none passed
+        check_version(current="22.10", required="22.04")  # assumes '>=' inequality if none passed
 
         # Check if current version is less than or equal to 22.04
-        check_version(current='22.04', required='<=22.04')
+        check_version(current="22.04", required="<=22.04")
 
         # Check if current version is between 20.04 (inclusive) and 22.04 (exclusive)
-        check_version(current='21.10', required='>20.04,<22.04')
+        check_version(current="21.10", required=">20.04,<22.04")
         ```
     """
     if not current:  # if current is '' or None
-        LOGGER.warning(f'WARNING ⚠️ invalid check_version({current}, {required}) requested, please check values.')
+        LOGGER.warning(f"WARNING ⚠️ invalid check_version({current}, {required}) requested, please check values.")
         return True
     elif not current[0].isdigit():  # current is package name rather than version string, i.e. current='ultralytics'
         try:
             name = current  # assigned package name to 'name' arg
             current = metadata.version(current)  # get version string from package name
-        except metadata.PackageNotFoundError:
+        except metadata.PackageNotFoundError as e:
             if hard:
-                raise ModuleNotFoundError(emojis(f'WARNING ⚠️ {current} package is required but not installed'))
+                raise ModuleNotFoundError(emojis(f"WARNING ⚠️ {current} package is required but not installed")) from e
             else:
                 return False
 
     if not required:  # if required is '' or None
         return True
 
+    if "sys_platform" in required and (  # i.e. required='<2.4.0,>=1.8.0; sys_platform == "win32"'
+        (WINDOWS and "win32" not in required)
+        or (LINUX and "linux" not in required)
+        or (MACOS and "macos" not in required and "darwin" not in required)
+    ):
+        return True
+
+    op = ""
+    version = ""
     result = True
     c = parse_version(current)  # '1.2.3' -> (1, 2, 3)
-    for r in required.strip(',').split(','):
-        op, v = re.match(r'([^0-9]*)([\d.]+)', r).groups()  # split '>=22.04' -> ('>=', '22.04')
-        v = parse_version(v)  # '1.2.3' -> (1, 2, 3)
-        if op == '==' and c != v:
+    for r in required.strip(",").split(","):
+        op, version = re.match(r"([^0-9]*)([\d.]+)", r).groups()  # split '>=22.04' -> ('>=', '22.04')
+        v = parse_version(version)  # '1.2.3' -> (1, 2, 3)
+        if op == "==" and c != v:
             result = False
-        elif op == '!=' and c == v:
+        elif op == "!=" and c == v:
             result = False
-        elif op in ('>=', '') and not (c >= v):  # if no constraint passed assume '>=required'
+        elif op in {">=", ""} and not (c >= v):  # if no constraint passed assume '>=required'
             result = False
-        elif op == '<=' and not (c <= v):
+        elif op == "<=" and not (c <= v):
             result = False
-        elif op == '>' and not (c > v):
+        elif op == ">" and not (c > v):
             result = False
-        elif op == '<' and not (c < v):
+        elif op == "<" and not (c < v):
             result = False
     if not result:
-        warning_message = f'WARNING ⚠️ {name}{op}{required} is required, but {name}=={current} is currently installed'
+        warning = f"WARNING ⚠️ {name}{op}{version} is required, but {name}=={current} is currently installed {msg}"
         if hard:
-            raise ModuleNotFoundError(emojis(warning_message))  # assert version requirements met
+            raise ModuleNotFoundError(emojis(warning))  # assert version requirements met
         if verbose:
-            LOGGER.warning(warning_message)
+            LOGGER.warning(warning)
     return result
 
 

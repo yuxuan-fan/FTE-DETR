@@ -19,7 +19,8 @@ from timm.models.layers import trunc_normal_
 __all__ = ['EMA', 'SimAM', 'SpatialGroupEnhance', 'BiLevelRoutingAttention', 'BiLevelRoutingAttention_nchw', 'TripletAttention', 
            'CoordAtt', 'BAMBlock', 'EfficientAttention', 'LSKBlock', 'SEAttention', 'CPCA', 'MPCA', 'deformable_LKA',
            'EffectiveSEModule', 'LSKA', 'SegNext_Attention', 'DAttention', 'FocusedLinearAttention', 'MLCA', 'TransNeXt_AggregatedAttention',
-           'HiLo', 'LocalWindowAttention', 'ELA', 'CAA', 'EfficientAdditiveAttnetion', 'AFGCAttention']
+           'HiLo', 'LocalWindowAttention', 'ELA', 'CAA', 'EfficientAdditiveAttnetion', 'AFGCAttention', 'DualDomainSelectionMechanism',
+           'AttentionTSSA']
 
 class EMA(nn.Module):
     def __init__(self, channels, factor=8):
@@ -1921,3 +1922,97 @@ class AFGCAttention(nn.Module):
         out = self.sigmoid(out)
 
         return input*out
+
+class ChannelPool(nn.Module):
+    def forward(self, x):
+        return torch.cat( (torch.max(x,1)[0].unsqueeze(1), torch.mean(x,1).unsqueeze(1)), dim=1)
+    
+class DSM_SpatialGate(nn.Module):
+    def __init__(self, channel):
+        super(DSM_SpatialGate, self).__init__()
+        kernel_size = 3
+        self.compress = ChannelPool()
+        self.spatial = Conv(2, 1, kernel_size, act=False)
+        self.dw1 = nn.Sequential(
+            Conv(channel, channel, 5, s=1, d=2, g=channel, act=nn.GELU()),
+            Conv(channel, channel, 7, s=1, d=3, g=channel, act=nn.GELU())
+        )
+        self.dw2 = Conv(channel, channel, kernel_size, g=channel, act=nn.GELU())
+
+    def forward(self, x):
+        out = self.compress(x)
+        out = self.spatial(out)
+        out = self.dw1(x) * out + self.dw2(x)
+        return out
+    
+class DSM_LocalAttention(nn.Module):
+    def __init__(self, channel, p) -> None:
+        super().__init__()
+        self.channel = channel
+
+        self.num_patch = 2 ** p
+        self.sig = nn.Sigmoid()
+
+        self.a = nn.Parameter(torch.zeros(channel,1,1))
+        self.b = nn.Parameter(torch.ones(channel,1,1))
+
+    def forward(self, x):
+        out = x - torch.mean(x, dim=(2,3), keepdim=True)
+        return self.a*out*x + self.b*x
+
+class DualDomainSelectionMechanism(nn.Module):
+    # https://openaccess.thecvf.com/content/ICCV2023/papers/Cui_Focal_Network_for_Image_Restoration_ICCV_2023_paper.pdf
+    # https://github.com/c-yn/FocalNet
+    # Dual-DomainSelectionMechanism
+    def __init__(self, channel) -> None:
+        super().__init__()
+        pyramid = 1
+        self.spatial_gate = DSM_SpatialGate(channel)
+        layers = [DSM_LocalAttention(channel, p=i) for i in range(pyramid-1,-1,-1)]
+        self.local_attention = nn.Sequential(*layers)
+        self.a = nn.Parameter(torch.zeros(channel,1,1))
+        self.b = nn.Parameter(torch.ones(channel,1,1))
+        
+    def forward(self, x):
+        out = self.spatial_gate(x)
+        out = self.local_attention(out)
+        return self.a*out + self.b*x
+
+class AttentionTSSA(nn.Module):
+    # https://github.com/RobinWu218/ToST
+    def __init__(self, dim, num_heads = 8, qkv_bias=False, attn_drop=0., proj_drop=0., **kwargs):
+        super().__init__()
+        
+        self.heads = num_heads
+
+        self.attend = nn.Softmax(dim = 1)
+        self.attn_drop = nn.Dropout(attn_drop)
+
+        self.qkv = nn.Linear(dim, dim, bias=qkv_bias)
+
+        self.temp = nn.Parameter(torch.ones(num_heads, 1))
+        
+        self.to_out = nn.Sequential(
+            nn.Linear(dim, dim),
+            nn.Dropout(proj_drop)
+        )
+    
+    def forward(self, x):
+        w = rearrange(self.qkv(x), 'b n (h d) -> b h n d', h = self.heads)
+
+        b, h, N, d = w.shape
+        
+        w_normed = torch.nn.functional.normalize(w, dim=-2) 
+        w_sq = w_normed ** 2
+
+        # Pi from Eq. 10 in the paper
+        Pi = self.attend(torch.sum(w_sq, dim=-1) * self.temp) # b * h * n 
+        
+        dots = torch.matmul((Pi / (Pi.sum(dim=-1, keepdim=True) + 1e-8)).unsqueeze(-2), w ** 2)
+        attn = 1. / (1 + dots)
+        attn = self.attn_drop(attn)
+
+        out = - torch.mul(w.mul(Pi.unsqueeze(-1)), attn)
+
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)

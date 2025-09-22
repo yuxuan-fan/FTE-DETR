@@ -238,7 +238,7 @@ class BaseTrainer:
         self.amp = bool(self.amp)  # as boolean
         self.scaler = amp.GradScaler(enabled=self.amp)
         if world_size > 1:
-            self.model = DDP(self.model, device_ids=[RANK])
+            self.model = DDP(self.model, device_ids=[RANK], find_unused_parameters=True)
 
         # Check imgsz
         gs = max(int(self.model.stride.max() if hasattr(self.model, 'stride') else 32), 32)  # grid size (max stride)
@@ -384,7 +384,11 @@ class BaseTrainer:
                 final_epoch = (epoch + 1 == self.epochs) or self.stopper.possible_stop
 
                 if self.args.val or final_epoch:
-                    self.metrics, self.fitness = self.validate()
+                    try:
+                        self.metrics, self.fitness = self.validate()
+                    except Exception as e:
+                        print(e)
+                        raise Exception('这阶段报错一般是没按使用教程.md要求修改，先看使用教程.md看看有没有要求修改什么，没的话按照使用教程.md下方常见疑问第五点修改，不行再在群里反馈')
                 self.save_metrics(metrics={**self.label_loss_items(self.tloss), **self.metrics, **self.lr})
                 self.stop = self.stopper(epoch + 1, self.fitness)
 
@@ -427,8 +431,8 @@ class BaseTrainer:
         ckpt = {
             'epoch': self.epoch,
             'best_fitness': self.best_fitness,
-            'model': deepcopy(de_parallel(self.model)).half(),
-            'ema': deepcopy(self.ema.ema).half(),
+            'model': deepcopy(de_parallel(self.model)),
+            'ema': deepcopy(self.ema.ema),
             'updates': self.ema.updates,
             'optimizer': self.optimizer.state_dict(),
             'train_args': vars(self.args),  # save as dict

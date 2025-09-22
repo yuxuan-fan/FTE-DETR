@@ -198,7 +198,7 @@ class DilatedReparamBlock(nn.Module):
             out = out + bn(conv(x))
         return out
 
-    def merge_dilated_branches(self):
+    def switch_to_deploy(self):
         if hasattr(self, 'origin_bn'):
             origin_k, origin_b = fuse_bn(self.lk_origin, self.origin_bn)
             for k, r in zip(self.kernel_sizes, self.dilates):

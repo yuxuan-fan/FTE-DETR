@@ -152,6 +152,22 @@ class VarifocalLoss(nn.Module):
                     weight).mean(1).sum()
         return loss
 
+class MALoss(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    @staticmethod
+    def forward(pred_score, gt_score, label, mal_alpha=None, gamma=2.0):
+        """Computes varfocal loss."""
+        gt_score = gt_score.pow(gamma)
+        if mal_alpha is not None:
+            weight = mal_alpha * pred_score.sigmoid().pow(gamma) * (1 - label) + label
+        else:
+            weight = pred_score.sigmoid().pow(gamma) * (1 - label) + label
+        with torch.cuda.amp.autocast(enabled=False):
+            loss = (F.binary_cross_entropy_with_logits(pred_score.float(), gt_score.float(), reduction='none') *
+                    weight).mean(1).sum()
+        return loss
 
 class FocalLoss(nn.Module):
     """Wraps focal loss around existing loss_fcn(), i.e. criteria = FocalLoss(nn.BCEWithLogitsLoss(), gamma=1.5)."""

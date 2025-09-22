@@ -18,6 +18,14 @@ from ultralytics.utils import ARM64, LINUX, LOGGER, ROOT, yaml_load
 from ultralytics.utils.checks import check_requirements, check_suffix, check_version, check_yaml
 from ultralytics.utils.downloads import attempt_download_asset, is_url
 
+def default_class_names(data=None):
+    """Applies default class names to an input YAML file or returns numerical class names."""
+    if data:
+        try:
+            return yaml_load(check_yaml(data))["names"]
+        except:  # noqa E722
+            pass
+    return {i: f"class{i}" for i in range(999)}  # return default if above errors
 
 def check_class_names(names):
     """
@@ -497,7 +505,7 @@ class AutoBackend(nn.Module):
         # Return model type from model path, i.e. path='path/to/model.onnx' -> type=onnx
         # types = [pt, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle]
         from ultralytics.engine.exporter import export_formats
-        sf = list(export_formats().Suffix)  # export suffixes
+        sf = export_formats()["Suffix"]  # export suffixes
         if not is_url(p, check=False) and not isinstance(p, str):
             check_suffix(p, sf)  # checks
         name = Path(p).name

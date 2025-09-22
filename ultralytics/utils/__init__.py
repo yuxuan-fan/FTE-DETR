@@ -40,6 +40,8 @@ TQDM_BAR_FORMAT = '{l_bar}{bar:10}{r_bar}' if VERBOSE else None  # tqdm bar form
 LOGGING_NAME = 'ultralytics'
 MACOS, LINUX, WINDOWS = (platform.system() == x for x in ['Darwin', 'Linux', 'Windows'])  # environment booleans
 ARM64 = platform.machine() in ('arm64', 'aarch64')  # ARM64 booleans
+PYTHON_VERSION = platform.python_version()
+MACOS, LINUX, WINDOWS = (platform.system() == x for x in ["Darwin", "Linux", "Windows"])  # environment booleans
 HELP_MSG = \
     """
     Usage examples for running YOLOv8:
@@ -944,3 +946,30 @@ torch.save = torch_save
 if WINDOWS:
     # Apply cv2 patches for non-ASCII and non-UTF characters in image paths
     cv2.imread, cv2.imwrite, cv2.imshow = imread, imwrite, imshow
+
+def read_device_model() -> str:
+    """
+    Reads the device model information from the system and caches it for quick access. Used by is_jetson() and
+    is_raspberrypi().
+
+    Returns:
+        (str): Model file contents if read successfully or empty string otherwise.
+    """
+    try:
+        with open("/proc/device-tree/model") as f:
+            return f.read()
+    except:  # noqa E722
+        return ""
+
+def is_jetson() -> bool:
+    """
+    Determines if the Python environment is running on a Jetson Nano or Jetson Orin device by checking the device model
+    information.
+
+    Returns:
+        (bool): True if running on a Jetson Nano or Jetson Orin, False otherwise.
+    """
+    return "NVIDIA" in PROC_DEVICE_MODEL  # i.e. "NVIDIA Jetson Nano" or "NVIDIA Orin NX"
+
+PROC_DEVICE_MODEL = read_device_model()
+IS_JETSON = is_jetson()

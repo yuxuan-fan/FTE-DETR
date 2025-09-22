@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ..modules import Conv
 
-__all__ = ['PPA', 'DASI']
+__all__ = ['PPA', 'DASI', 'LocalGlobalAttention']
 
 class SpatialAttentionModule(nn.Module):
     def __init__(self):

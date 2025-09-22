@@ -1,3 +1,6 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+
+from ultralytics.nn.backbone.lsnet import SKA
 import contextlib
 from copy import deepcopy
 from pathlib import Path
@@ -31,6 +34,10 @@ from ultralytics.nn.backbone.rmt import *
 from ultralytics.nn.backbone.pkinet import *
 from ultralytics.nn.backbone.mobilenetv4 import *
 from ultralytics.nn.backbone.starnet import *
+from ultralytics.nn.extra_modules.mobileMamba.mobilemamba import *
+from ultralytics.nn.backbone.MambaOut import *
+from ultralytics.nn.backbone.overlock import *
+from ultralytics.nn.backbone.lsnet import *
 
 try:
     import thop
@@ -39,26 +46,21 @@ except ImportError:
 
 
 class BaseModel(nn.Module):
-    """
-    The BaseModel class serves as a base class for all the models in the Ultralytics YOLO family.
-    作为 Ultralytics YOLO 系列模型的基类。
-    """
+    """The BaseModel class serves as a base class for all the models in the Ultralytics YOLO family."""
 
     def forward(self, x, *args, **kwargs):
         """
-        前向传播
         Forward pass of the model on a single scale. Wrapper for `_forward_once` method.
 
         Args:
             x (torch.Tensor | dict): The input image tensor or a dict including image tensor and gt labels.
 
         Returns:
-            (torch.Tensor): The output of the network. 返回一个torch.Tensor类型的对象，代表网络的输出。
+            (torch.Tensor): The output of the network.
         """
-        #检查输入 x 是否是一个字典类型。
-        if isinstance(x, dict):  #在训练和验证过程中，可能会将图像张量和对应的真实标签（ground truth labels）封装在一个字典中进行传递。
-            return self.loss(x, *args, **kwargs)#处于训练或验证阶段
-        return self.predict(x, *args, **kwargs)#假设处于预测阶段，调用 self.predict 方法进行预测并返回结果。
+        if isinstance(x, dict):  # for cases of training and validating while training.
+            return self.loss(x, *args, **kwargs)
+        return self.predict(x, *args, **kwargs)
 
     def predict(self, x, profile=False, visualize=False, augment=False):
         """
@@ -276,8 +278,9 @@ class DetectionModel(BaseModel):
         else:
             try:
                 self.forward(torch.zeros(2, ch, 640, 640))
-            except RuntimeError as e:
-                if 'Not implemented on the CPU' in str(e) or 'Input type (torch.FloatTensor) and weight type (torch.cuda.FloatTensor)' in str(e) or 'CUDA tensor' in str(e) or 'is_cuda' in str(e):
+            except (RuntimeError, ValueError) as e:
+                if 'Not implemented on the CPU' in str(e) or 'Input type (torch.FloatTensor) and weight type (torch.cuda.FloatTensor)' in str(e) or \
+                'CUDA tensor' in str(e) or 'is_cuda()' in str(e) or 'carafe_forward_impl' in str(e) or 'Pointer argument (at 0) cannot be accessed from Triton (cpu tensor?)' in str(e):
                     self.model.to(torch.device('cuda'))
             except Exception:
                 pass
@@ -445,7 +448,7 @@ class RTDETRDetectionModel(DetectionModel):
         """Initialize the loss criterion for the RTDETRDetectionModel."""
         from ultralytics.models.utils.loss import RTDETRDetectionLoss
 
-        return RTDETRDetectionLoss(nc=self.nc, use_vfl=True, use_sl=False, use_emasl=False, use_svfl=False, use_emasvfl=False)
+        return RTDETRDetectionLoss(nc=self.nc, use_vfl=True, use_sl=False, use_emasl=False, use_svfl=False, use_emasvfl=False, use_mal=False)
 
     def loss(self, batch, preds=None):
         """
@@ -616,7 +619,10 @@ def torch_safe_load(weight):
                 'ultralytics.yolo.utils': 'ultralytics.utils',
                 'ultralytics.yolo.v8': 'ultralytics.models.yolo',
                 'ultralytics.yolo.data': 'ultralytics.data'}):  # for legacy 8.0 Classify and Pose models
-            return torch.load(file, map_location='cpu'), file  # load
+            try:
+                return torch.load(file, map_location='cpu', weights_only=False), file  # load
+            except:
+                return torch.load(file, map_location='cpu'), file  # load
 
     except ModuleNotFoundError as e:  # e.name is missing module name
         if e.name == 'models':
@@ -632,7 +638,7 @@ def torch_safe_load(weight):
                        f"run a command with an official YOLOv8 model, i.e. 'yolo predict model=yolov8n.pt'")
         check_requirements(e.name)  # install missing module
 
-        return torch.load(file, map_location='cpu'), file  # load
+        return torch.load(file, map_location='cpu', weights_only=False), file  # load
 
 
 def attempt_load_weights(weights, device=None, inplace=True, fuse=False):
@@ -766,7 +772,16 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                  C3_PKIModule, C2f_PKIModule, C3_FADC, C2f_FADC, C3_PPA, C2f_PPA, SRFD, DRFD, RGCSPELAN, C3_Faster_CGLU, C2f_Faster_CGLU,
                  C3_Star, C2f_Star, C3_Star_CAA, C2f_Star_CAA, C3_KAN, C2f_KAN, KANC3, C3_DEConv, C2f_DEConv, C3_SMPCGLU, C2f_SMPCGLU,
                  C3_Heat, C2f_Heat, CSP_PTB, SimpleStem, VisionClueMerge, VSSBlock_YOLO, XSSBlock, GLSA, WTConv2d, C2f_FMB, gConvC3, C2f_gConv,
-                 LDConv, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, CSP_MSCB, C2f_MSMHSA_CGLU, CSP_PMSFA):
+                 LDConv, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, CSP_MSCB, C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock,
+                 C2f_SHSA, C2f_SHSA_CGLU, C2f_SMAFB, C2f_SMAFB_CGLU, CSP_MutilScaleEdgeInformationEnhance, C2f_FFCM, C2f_SFHF, CSP_FreqSpatial,
+                 C2f_MSM, CSP_MutilScaleEdgeInformationSelect, C2f_HDRAB, C2f_RAB, LFEC3, C2f_FCA, C2f_CAMixer, MANet, MANet_FasterBlock, MANet_FasterCGLU,
+                 MANet_Star, C2f_HFERB, C2f_DTAB, C2f_JDPM, C2f_ETB, C2f_FDT, PSConv, C2f_AP, C2f_ELGCA, C2f_ELGCA_CGLU, C2f_Strip, C2f_StripCGLU,
+                 C2f_KAT, C2f_Faster_KAN, C2f_DCMB, C2f_DCMB_KAN, C2f_GlobalFilter, C2f_DynamicFilter, RepHMS, C2f_SAVSS, C2f_MambaOut,
+                 C2f_EfficientVIM, C2f_EfficientVIM_CGLU, CSP_MSCB_SC, C2f_MambaOut_UniRepLK, C2f_IEL, IELC3, C2f_RCB, C2f_FAT, C2f_LEGM, C2f_MobileMamba,
+                 C2f_LFEM, LoGStem, C2f_SBSM, C2f_LSBlock, C2f_MambaOut_LSConv, C2f_TransMamba, C2f_EVS, C2f_EBlock, C2f_DBlock, C2f_FDConv, C2f_MambaOut_FDConv,
+                 C2f_PFDConv, C2f_FasterFDConv, FDConvC3, C2f_DSAN, C2f_DSAN_EDFFN, C2f_MambaOut_DSA, C2f_DSA, C2f_RMB, GSConvE, C2f_SFSConv, C2f_MambaOut_SFSC,
+                 C2f_PSFSConv, C2f_FasterSFSConv, C2f_GroupMamba, C2f_GroupMambaBlock, C2f_MambaVision, C2f_FourierConv, FourierConv, C2f_wConv, wConv2d,
+                 C2f_GLVSS, C2f_ESC, C2f_MBRConv3, C2f_MBRConv5, MBRConv3C3, MBRConv5C3, C2f_VSSD, C2f_TVIM, C2f_CSI, C2f_SHSA_EPGO, C2f_SHSA_EPGO_CGLU, C2f_ConvAttn):
             if args[0] == 'head_channel':
                 args[0] = d[args[0]]
             c1, c2 = ch[f], args[0]
@@ -792,12 +807,26 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                      C3_PKIModule, C2f_PKIModule, C3_FADC, C2f_FADC, C3_PPA, C2f_PPA, RGCSPELAN, C3_Faster_CGLU, C2f_Faster_CGLU,
                      C3_Star, C2f_Star, C3_Star_CAA, C2f_Star_CAA, C3_KAN, C2f_KAN, KANC3, C3_DEConv, C2f_DEConv, C3_SMPCGLU, C2f_SMPCGLU, 
                      C3_Heat, C2f_Heat, CSP_PTB, XSSBlock, C2f_FMB, C2f_gConv, gConvC3, C2f_AdditiveBlock, C2f_AdditiveBlock_CGLU, CSP_MSCB,
-                     C2f_MSMHSA_CGLU, CSP_PMSFA):
+                     C2f_MSMHSA_CGLU, CSP_PMSFA, C2f_MogaBlock, C2f_SHSA, C2f_SHSA_CGLU, C2f_SMAFB, C2f_SMAFB_CGLU, CSP_MutilScaleEdgeInformationEnhance,
+                     C2f_FFCM, C2f_SFHF, CSP_FreqSpatial, C2f_MSM, CSP_MutilScaleEdgeInformationSelect, C2f_HDRAB, C2f_RAB, LFEC3, C2f_FCA, C2f_CAMixer, MANet,
+                     MANet_FasterBlock, MANet_FasterCGLU, MANet_Star, C2f_HFERB, C2f_DTAB, C2f_JDPM, C2f_ETB, C2f_FDT, C2f_AP, C2f_ELGCA, C2f_ELGCA_CGLU, 
+                     C2f_Strip, C2f_StripCGLU, C2f_KAT, C2f_Faster_KAN, C2f_DCMB, C2f_DCMB_KAN, C2f_GlobalFilter, C2f_DynamicFilter, C2f_SAVSS, C2f_MambaOut,
+                     C2f_EfficientVIM, C2f_EfficientVIM_CGLU, CSP_MSCB_SC, C2f_MambaOut_UniRepLK, C2f_IEL, IELC3, C2f_RCB, C2f_FAT, C2f_LEGM, C2f_MobileMamba,
+                     C2f_LFEM, C2f_SBSM, C2f_LSBlock, C2f_MambaOut_LSConv, C2f_TransMamba, C2f_EVS, C2f_EBlock, C2f_DBlock, C2f_FDConv, C2f_MambaOut_FDConv,
+                     C2f_PFDConv, C2f_FasterFDConv, FDConvC3, C2f_DSAN, C2f_DSAN_EDFFN, C2f_MambaOut_DSA, C2f_DSA, C2f_RMB, C2f_SFSConv, C2f_MambaOut_SFSC,
+                     C2f_PSFSConv, C2f_FasterSFSConv, C2f_GroupMamba, C2f_GroupMambaBlock, C2f_MambaVision, C2f_FourierConv, C2f_wConv, C2f_GLVSS, C2f_ESC,
+                     C2f_MBRConv3, C2f_MBRConv5, MBRConv3C3, MBRConv5C3, C2f_VSSD, C2f_TVIM, C2f_CSI, C2f_SHSA_EPGO, C2f_SHSA_EPGO_CGLU, C2f_ConvAttn):
                 args.insert(2, n)  # number of repeats
                 n = 1
         elif m in (AIFI, AIFI_LPE, TransformerEncoderLayer_LocalWindowAttention, TransformerEncoderLayer_DAttention, TransformerEncoderLayer_HiLo, 
                    TransformerEncoderLayer_EfficientAdditiveAttnetion, AIFI_RepBN, TransformerEncoderLayer_AdditiveTokenMixer,
-                   TransformerEncoderLayer_MSMHSA):
+                   TransformerEncoderLayer_MSMHSA, TransformerEncoderLayer_DHSA, TransformerEncoderLayer_DPB, DTAB, ETB, FDT,
+                   TransformerEncoderLayer_Pola, TransformerEncoderLayer_TSSA, TransformerEncoderLayer_ASSA, TransformerEncoderLayer_Pola_CGLU,
+                   TransformerEncoderLayer_Pola_FMFFN, AIFI_SEFN, TransformerEncoderLayer_ASSA_SEFN, TransformerEncoderLayer_Pola_SEFN, AIFI_Mona,
+                   TransformerEncoderLayer_Pola_SEFN_Mona, TransformerEncoderLayer_ASSA_SEFN_Mona, AIFI_DyT, TransformerEncoderLayer_ASSA_SEFN_Mona_DyT,
+                   TransformerEncoderLayer_Pola_SEFN_Mona_DyT, AIFI_SEFFN, TransformerEncoderLayer_Pola_SEFFN_Mona_DyT, AIFI_EDFFN, TransformerEncoderLayer_Pola_EDFFN_Mona_DyT,
+                   TransformerEncoderLayer_MSLA, TransformerEncoderLayer_EPGO, TransformerEncoderLayer_SHSA, TransformerEncoderLayer_SHSA_EPGO):
+            c2 = ch[f]
             args = [ch[f], *args]
         elif m in (HGStem, HGBlock, Ghost_HGBlock, Rep_HGBlock, HGBlock_Attention):
             c1, cm, c2 = ch[f], args[0], args[1]
@@ -841,7 +870,11 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                    RMT_T, RMT_S, RMT_B, RMT_L,
                    PKINET_T, PKINET_S, PKINET_B,
                    MobileNetV4ConvSmall, MobileNetV4ConvMedium, MobileNetV4ConvLarge, MobileNetV4HybridMedium, MobileNetV4HybridLarge,
-                   starnet_s050, starnet_s100, starnet_s150, starnet_s1, starnet_s2, starnet_s3, starnet_s4
+                   starnet_s050, starnet_s100, starnet_s150, starnet_s1, starnet_s2, starnet_s3, starnet_s4,
+                   MobileMamba_T2, MobileMamba_T4, MobileMamba_S6, MobileMamba_B1, MobileMamba_B2, MobileMamba_B4,
+                   mambaout_femto, mambaout_kobe, mambaout_tiny, mambaout_small, mambaout_base,
+                   overlock_xt, overlock_t, overlock_s, overlock_b,
+                   lsnet_t, lsnet_s, lsnet_b
                    }:
             # if m is RevCol:
             #     args[1] = [make_divisible(min(k, max_channels) * width, 8) for k in args[1]]
@@ -852,7 +885,8 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
                    TripletAttention, CoordAtt, CBAM, BAMBlock, LSKBlock, SEAttention, CPCA, EfficientAttention, 
                    MPCA, deformable_LKA, EffectiveSEModule, LSKA, SegNext_Attention, DAttention, MLCA,
                    FocusedLinearAttention, TransNeXt_AggregatedAttention, HiLo, ChannelAttention_HSFPN, ELA_HSFPN, CA_HSFPN, CAA_HSFPN,
-                   DySample, CARAFE, ELA, CAA, CAFM, LocalWindowAttention, EfficientAdditiveAttnetion, AFGCAttention, EUCB
+                   DySample, CARAFE, ELA, CAA, CAFM, LocalWindowAttention, EfficientAdditiveAttnetion, AFGCAttention, EUCB, ContrastDrivenFeatureAggregation,
+                   FSA, AttentiveLayer, EUCB_SC
                 #    ScConv, LAWDS, EMSConv, EMSConvP, Partial_conv3, FocalModulation
                    }:
             c2 = ch[f]
@@ -862,7 +896,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
             c2 = ch[f]
         elif m is ContextGuidedBlock_Down:
             c2 = ch[f] * 2
-            args = [ch[f], c2, *args]
+            args = [ch[f], *args]
         # elif m is BiFusion:
         #     c1 = [ch[x] for x in f]
         #     c2 = make_divisible(min(args[0], max_channels) * width, 8)
@@ -959,14 +993,83 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
         elif m in {FuseBlockMulti}:
             c2 = ch[f[0]]
             args = [c2]
+        elif m in {CrossLayerChannelAttention, CrossLayerSpatialAttention}:
+            c2 = [ch[x] for x in f]
+            args = [c2[0], *args]
+        elif m in {FreqFusion}:
+            c2 = ch[f[0]]
+            args = [[ch[x] for x in f], *args]
+        elif m in {DynamicAlignFusion, ConvEdgeFusion}:
+            c2 = make_divisible(min(args[0], max_channels) * width, 8)
+            args = [[ch[x] for x in f], c2]
+        elif m in {MutilScaleEdgeInfoGenetator}:
+            c1 = ch[f]
+            c2 = [make_divisible(min(i, max_channels) * width, 8) for i in args[0]]
+            args = [c1, c2]
+        elif m is HyperComputeModule:
+            c1, c2 = ch[f], args[0]
+            c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [c1, c2, *args[1:]]
+        elif m in {MultiScaleGatedAttn}:
+            c1 = [ch[x] for x in f]
+            c2 = min(c1)
+            args = [c1]
+        elif m in {WFU, MultiScalePCA, MultiScalePCA_Down}:
+            c1 = [ch[x] for x in f]
+            c2 = c1[0]
+            args = [c1]
+        elif m in {HAFB, MFM}:
+            c1 = [ch[x] for x in f]
+            c2 = make_divisible(min(args[0], max_channels) * width, 8)
+            args = [c1, c2, *args[1:]]
+        elif m in {CrossAttentionBlock}:
+            c1 = [ch[x] for x in f]
+            c2 = c1[1]
+            args = [c1, *args[1:]]
+        elif m in {GDSAFusion}:
+            c1 = [ch[x] for x in f]
+            c2 = sum(c1)
+            args = [*c1, *args]
+        elif m is SNI:
+            c2, up_f = ch[f], args[0]
+            args = [up_f]
         elif m is Blocks:
             block_type = globals()[args[1]]
             c1, c2 = ch[f], args[0] * block_type.expansion
             args = [c1, args[0], block_type, *args[2:]]
+        elif m in {Pzconv, FCM, FCM_1, FCM_2, FCM_3}:
+            c2 = ch[f]
+            args = [c2]
+        elif m is PST:
+            c1, c_up, c2 = ch[f[0]], ch[f[1]], args[0]
+            c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [c1, c_up, c2, *args[1:]]
+            args.insert(3, n)  # number of repeats
+            n = 1
+        elif m is HFP:
+            c2 = ch[f]
+            args = [c2, *args]
+        elif m is SDP:
+            c1 = [ch[x] for x in f]
+            c2 = make_divisible(min(args[0], max_channels) * width, 8)
+            args = [c1, c2, *args[1:]]
+        elif m is HyperACE:
+            c1 = ch[f[1]]
+            c2 = args[0]
+            c2 = make_divisible(min(c2, max_channels) * width, 8)
+            he = args[1] 
+            args = [c1, c2, n, he, *args[2:]]
+            n = 1
+        elif m is FullPAD_Tunnel:
+            c2 = ch[f[0]]
+        elif m is DPCF:
+            c1 = [ch[x] for x in f]
+            c2 = make_divisible(min(args[0], max_channels) * width, 8)
+            args = [c1, c2]
         else:
             c2 = ch[f]
 
-        if isinstance(c2, list) and m not in {ChannelTransformer, PyramidContextExtraction}:
+        if isinstance(c2, list) and m not in {ChannelTransformer, PyramidContextExtraction, CrossLayerChannelAttention, CrossLayerSpatialAttention, MutilScaleEdgeInfoGenetator}:
             is_backbone = True
             m_ = m
             m_.backbone = True
@@ -982,7 +1085,7 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
         layers.append(m_)
         if i == 0:
             ch = []
-        if isinstance(c2, list) and m not in {ChannelTransformer, PyramidContextExtraction}:
+        if isinstance(c2, list) and m not in {ChannelTransformer, PyramidContextExtraction, CrossLayerChannelAttention, CrossLayerSpatialAttention, MutilScaleEdgeInfoGenetator}:
             ch.extend(c2)
             for _ in range(5 - len(ch)):
                 ch.insert(0, 0)

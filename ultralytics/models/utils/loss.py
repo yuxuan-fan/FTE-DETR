@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import dill as pickle
 
-from ultralytics.utils.loss import FocalLoss, VarifocalLoss, SlideLoss, EMASlideLoss, SlideVarifocalLoss, EMASlideVarifocalLoss
+from ultralytics.utils.loss import FocalLoss, VarifocalLoss, SlideLoss, EMASlideLoss, SlideVarifocalLoss, EMASlideVarifocalLoss, MALoss
 from ultralytics.utils.metrics import bbox_iou, bbox_inner_iou, bbox_focaler_iou, bbox_mpdiou, bbox_inner_mpdiou, bbox_focaler_mpdiou, wasserstein_loss, WiseIouLoss
 
 from .ops import HungarianMatcher
@@ -41,6 +41,7 @@ class DETRLoss(nn.Module):
                  use_emasl=False, # EMASlideLoss
                  use_svfl=False, # SlideVarifocalLoss
                  use_emasvfl=False, # EMASlideVarifocalLoss
+                 use_mal=False, # CVPR2025-DEIM MAL
                  use_uni_match=False,
                  uni_match_ind=0):
         """
@@ -68,6 +69,7 @@ class DETRLoss(nn.Module):
         self.emasl = EMASlideLoss(nn.BCEWithLogitsLoss(reduction='none')) if use_emasl else None
         self.svfl = SlideVarifocalLoss() if use_svfl else None
         self.emasvfl = EMASlideVarifocalLoss() if use_emasvfl else None
+        self.mal = MALoss() if use_mal else None
 
         self.use_uni_match = use_uni_match
         self.uni_match_ind = uni_match_ind
@@ -116,8 +118,11 @@ class DETRLoss(nn.Module):
                 loss_cls = self.fl(pred_scores, one_hot.float())
             loss_cls /= max(num_gts, 1) / nq
         elif self.fl:
-            if num_gts and self.vfl:
-                loss_cls = self.vfl(pred_scores, gt_scores, one_hot)
+            if num_gts:
+                if self.vfl:
+                    loss_cls = self.vfl(pred_scores, gt_scores, one_hot)
+                elif self.mal:
+                    loss_cls = self.mal(pred_scores, gt_scores, one_hot)
             else:
                 loss_cls = self.fl(pred_scores, one_hot.float())
             loss_cls /= max(num_gts, 1) / nq
