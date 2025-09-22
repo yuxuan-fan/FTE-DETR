@@ -1,5 +1,5 @@
 # dataset path
-path: /root/autodl-fs #项目路径
+path: /root/autodl-fs/PKU-market-PCB_yolo #项目路径autodl-fs/PKU-market-PCB_yolo
 train: images/train
 val: images/val
 test: images/test
