@@ -34,25 +34,3 @@ VOC格式的数据集将标注放在Annotations,图片放在JPEGImages，图片�
 这样就得到了yolo格式的数据集。
 
 通过split_data.py对数据集进行划分，运行完就会分割出iamges和lables文件夹
-
-data.yaml中需要修改项目路径 类别数量 类别名称
-
-
-# 文件说明
-
-1. main_profile.py
-    输出模型和模型每一层的参数,计算量的脚本
-2. detect.py
-    推理的脚本
-3. track.py
-    跟踪推理的脚本
-4. heatmap.py
-    生成热力图的脚本
-5. get_COCO_metrice.py
-    计算COCO指标的脚本
-6. plot_result.py
-    绘制曲线对比图的脚本
-7. get_model_erf.py
-    绘制模型的有效感受野
-8. export.py
-    导出模型脚本
