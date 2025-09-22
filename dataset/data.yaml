@@ -1,8 +1,8 @@
 # dataset path
 path: /root/autodl-fs #项目路径
-train: images\train
-val: images\val
-test: images\test
+train: images/train
+val: images/val
+test: images/test
 
 # number of classes
 nc: 6
