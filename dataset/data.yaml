@@ -1,14 +1,15 @@
 # dataset path
 path: /root/autodl-fs/PKU-market-PCB_yolo #项目路径autodl-fs/PKU-market-PCB_yolo
+
+
 train: images/train
 val: images/val
 test: images/test
 
-# number of classes
-nc: 6
 
-# class names
-# names: ['ship']
+nc: 6
 # names: ['missing_hole', 'mouse_bite', 'open_circuit', 'short', 'spurious_copper', 'spur']     #PKU
 names: ['copper', 'mousebite', 'open', 'pin-hole', 'short', 'spur']                           #deepPCB
 
+# nc: 23
+# names: ['Button', 'Capacitor', 'Capacitor Jumper', 'Clock', 'Connector', 'Diode', 'EM', 'Electrolytic Capacitor', 'Ferrite Bead', 'IC', 'Inductor', 'Jumper', 'Led', 'Pads', 'Pins', 'Resistor', 'Resistor Jumper', 'Resistor Network', 'Switch', 'Test Point', 'Transistor', 'Unknown Unlabeled', 'iC']
