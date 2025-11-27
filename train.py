@@ -3,11 +3,14 @@ warnings.filterwarnings('ignore')
 from ultralytics import RTDETR
 
 if __name__ == '__main__':
-    model = RTDETR(r'ultralytics/cfg/models/rt-detr/ea-rt-detr.yaml')
+    model = RTDETR(r'ultralytics/cfg/models/rt-detr/rtdetr-r18.yaml')
+
+    # rtdetr-r18.yaml
+    # ea-rt-detr.yaml
     model.train(data='dataset/data.yaml',
                 cache=False,
                 imgsz=640,
-                epochs=350,
+                epochs=400,
                 batch=16,
                 workers=4,
                 
